@@ -1,0 +1,32 @@
+#!/bin/bash
+set -e
+
+if [ $# -ne 1 ]; then
+	echo "Usage:"
+	echo "  $(basename "$0") [OPTIONS] DIRECTORY"
+	echo "Synopsis:"
+	echo "  Recursively searches the contents of a directory for anything that looks like"
+	echo "  an executable file, and makes sure that the found files have the executable"
+	echo "  permission set.  The reason this is necessary is that some utilities do not"
+	echo "  properly handle permissions when extracting archives.  This means that if an"
+	echo "  archive contains many executables, they would normally have to be found and"
+	echo "  fixed individually.  This script attempts to automate that process."
+	echo "Arguments:"
+	echo "  DIRECTORY  The directory to search within.  Note that because OS X"
+	echo "             applications (with the .app extension) are actually directories,"
+	echo "             this script can fix them, as well."
+else
+	IFS=$'\n'
+	for File in $(find "$1" -type f); do
+		Type="$(file -b "$File")"
+		if [[ "$Type" == *"executable"* ]]; then
+		 	if [ -x "$File" ]; then
+		 		echo -en "\033[33;1m~"
+		 	else
+		 		echo -en "\033[32;1m+"
+		 	fi
+		 	echo -e "\033[0m $File"
+		 	chmod +x "$File"
+		 fi
+	done
+fi
