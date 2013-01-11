@@ -1,0 +1,53 @@
+#!/bin/bash
+set -e
+
+if [ $# -lt 1 ]; then
+	echo "Usage:"
+	echo "  $(basename "$0") TOOL_NAME [ADDITIONAL_ARGUMENTS]"
+	echo "Synopsis:"
+	echo "  Mimics the proper installation of Xcode-supplied command-line utilities by"
+	echo "  creating links to them.  Alternatively, \"proxy scripts\" can be created that"
+	echo "  simply invoke their targets with whatever arguments were passed to them."
+	echo "  Proxy scripts function just like links, except that a proxy script can pass"
+	echo "  user-specified additional arguments to its target upon every invocation."
+	echo "Arguments:"
+	echo "  TOOL_NAME             The name of the tool to link to."
+	echo "  ADDITIONAL_ARGUMENTS  Any arguments that should be supplied by default when"
+	echo "                        the link is invoked.  If supplied, Link creates a"
+	echo "                        \"proxy\" shell script that calls TOOL_NAME with the"
+	echo "                        additional arguments instead of simply creating a"
+	echo "                        symbolic link to it."
+
+else
+	LinkDirectory="$(dirname "$0")/FakeInstalled"
+	LinkName="$1"
+	mkdir -p "$LinkDirectory"
+	LinkDirectory=$(cd "$LinkDirectory" && pwd) # Make the path absolute.
+
+	if [ $# -eq 1 ]; then
+		ln -sf "$(which xcrun)" "$LinkDirectory/$LinkName"
+		echo "Created link to $LinkName in $LinkDirectory."
+	else
+		echo "#/bin.bash" > "$LinkDirectory/$LinkName"
+
+		shift # Ignore the first argument, the tool name.
+		for AdditionalArgument; do
+			# Every argument needs to be quoted to ensure that spaces
+			# are properly handled when the proxy script is called.
+			AdditionalArguments+="\"$AdditionalArgument\" "
+		done
+
+		echo xcrun $LinkName $AdditionalArguments \"\$@\" >> "$LinkDirectory/$LinkName"
+
+		chmod +x "$LinkDirectory/$LinkName"
+
+		echo "Created proxy script for $LinkName in $LinkDirectory."
+	fi
+
+	if [[ ":$PATH:" != *":$LinkDirectory:"* ]]; then
+		echo -e "\\n# Automatically added by FakeInstall." >> ~/.bash_profile
+		echo "PATH=\"$LinkDirectory\":\$PATH" >> ~/.bash_profile
+		echo "Automatically added $LinkDirectory to PATH variable in ~/.bash_profile."
+		echo "Remember to run \"source ~/.bash_profile\" to update your environment!"
+	fi
+fi
