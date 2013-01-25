@@ -1,0 +1,174 @@
+#!/bin/bash
+set -e
+set -o pipefail
+
+# ANSI escape codes for fancy text color.
+readonly GREEN='\033[32;1m'
+readonly YELLOW="\033[33;1m"
+readonly RED="\033[31;1m"
+readonly RESET="\033[0m"
+
+function Convert
+{
+	set -e
+	
+	echo -e "${GREEN}Converting${RESET} $1..." > /dev/tty
+	
+	# hdiutil automatically appends the .cdr extension to converted files, so it
+	# is not necessary to add it here.
+	local OutputFile="$(basename "$1")"
+	
+	# If uncommented, this will produce files like Foo.iso instead of Foo.dmg.iso.
+	# The Extract function in this script will need to be modified so that it does
+	# not try to strip two extensions.
+	# OutputFile=${OutputFile%.*}
+	
+	hdiutil convert -ov -quiet -format UDTO -o "$OutputFile" "$1"
+	local RenamedOutputFile="$OutputFile.iso"
+	mv "$OutputFile.cdr" "$RenamedOutputFile" && echo "$RenamedOutputFile"
+}
+
+function CheckPowerISO
+{
+	set -e
+	
+	local OriginalDirectory="$(pwd)"
+	cd "$(dirname "$0")"
+	
+	which -s poweriso && local PowerISO="$(which poweriso)"
+	
+	# Executables next to this script override system executables.
+	[ -x ./poweriso ] && local PowerISO=poweriso
+	
+	# If no executable was found, it needs to be downloaded.
+	if [ -z "$PowerISO" ]; then
+		echo -en "${YELLOW}Alert:${RESET} " > /dev/tty
+		echo "This script needs PowerISO to extract stuff." > /dev/tty
+		echo "Download now to $(pwd)?" > /dev/tty
+		echo -en "[${GREEN}Y${RESET}/${RED}N${RESET}] " > /dev/tty
+		read Response
+		
+		if [[ $(echo "$Response" | tr '[A-Z]' '[a-z]') =~ y(es)? ]]; then
+			echo "Downloading and extracting PowerISO..." > /dev/tty
+			local File="poweriso-1.3-osx.tar.gz"
+			curl -OL "http://poweriso.com/$File"
+			tar -xf "$File"
+			rm "$File"
+			local PowerISO="$(pwd)/poweriso" # This needs to be an absolute path to be valid
+			                                 # after the original working directory is restored.
+		
+		else
+			echo -e "${RED}Exiting.${RESET}  Tip: Try the --NoExtraction option next time." > /dev/tty
+			exit 1; # Needed because this function is executed in a subshell, and a simple
+			        # "exit" would not exit the entire script.  This works because -e is set.
+		fi
+	fi
+	
+	cd "$OriginalDirectory"
+	echo "$PowerISO"
+}
+
+function Extract
+{
+	# For some reason, this is necessary again here so that the subshell
+	# exits when CheckPowerISO() fails.  I think.
+	set -e
+	
+	if ! $Extract; then
+		echo -e "${GREEN}Skipping extraction${RESET} of $1." > /dev/tty
+		echo "$1"
+	else
+		PowerISO="$(CheckPowerISO)"
+		echo -e "${GREEN}Extracting${RESET} $1..." > /dev/tty
+		Folder="${1%.*}" # Do this twice to remove exactly the last two extensions.
+		Folder="${Folder%.*}" # The first removed is .iso, and the second is .dmg.
+		
+		# PowerISO does not have a "--quiet" option or an "--overwrite" option,
+		# so the output folder must be removed (if it exists) first and PowerISO's
+		# output must be manually redirected to /dev/null.
+		rm -Rf "$Folder"
+		"$PowerISO" extract "$1" / -od "$Folder" > /dev/null
+		
+		echo $Folder
+	fi
+}
+
+function Fix
+{
+	set -e
+	
+	if ! $Fix; then
+		echo -e "${GREEN}Skipping fixing permissions${RESET} of executables in $1." > /dev/tty
+	else
+		echo -e "${GREEN}Fixing executable permissions${RESET} in $1..." > /dev/tty
+		
+		IFS=$'\n' # For traversing the output of find file-by-file.
+		
+		for File in $(find "$1" -type f); do
+			local Type="$(file -b "$File")"
+			if [[ "$Type" == *"executable"* ]]; then
+		 		if [ -x "$File" ]; then
+		 			echo -en "${YELLOW}~" > /dev/tty
+		 		else
+		 			echo -en "${GREEN}+" > /dev/tty
+		 		fi
+		 		echo -e "${RESET} $File" > /dev/tty
+		 	fi
+		 	chmod +x "$File"
+		 done
+	fi
+	echo "$1"
+}
+
+if [ $# -lt 1 ]; then
+	echo "Usage:"
+	echo " $(basename "$0") [OPTIONS] FILES..."
+	echo "Arguments:"	
+	echo "  FILES...  The files to be FakeMounted.  These can be .dmg files, .iso files,"
+	echo "            folders or .app files (which are really just folders, anyway).  If a"
+	echo "            file is a .dmg, it is converted, extracted and its executables are"
+	echo "            fixed.  If it is a .iso, it is just extracted and its executables"
+	echo "            are fixed.  If it is a folder or .app, its executables are fixed"
+	echo "            only."
+	echo "Options:"
+	echo "  --NoFix         Don't fix the permissions of extracted files that look like"
+	echo "                  executables."
+	echo "  --NoExtraction  Don't attempt to extract the contents of .dmg files; just"
+	echo "                  convert them to .cdr files."
+else
+	# Handle the options.
+	if [[ "$1" =~ --NoFix|--NoExtraction ]]; then
+		Options+="$1 "
+		# If the first argument is an option, then the second one can be too.
+		if [[ "$2" =~ --NoFix|--NoExtraction ]] && [ "$2" != "$1" ]; then
+			Options+="$2"
+			shift
+		fi
+		shift
+	fi
+	[[ "$Options" = *--NoFix* ]] && Fix=false
+	[[ "$Options" = *--NoExtraction* ]] && Extract=false
+	
+	for OriginalFile in "$@"; do
+		if [[ "$OriginalFile" != *.dmg ]] && [[ "$OriginalFile" != *.iso ]] && [ ! -d "$OriginalFile" ]; then
+			echo -en "${YELLOW}Warning:${RESET} "
+			echo "$OriginalFile is not a .dmg, .iso, folder or .app.  Skipping."
+		else
+			ExtensionlessFile=${OriginalFile%.*}
+			CurrentFile=$OriginalFile
+			
+			# Properly handle folders that, for whatever reason, have .dmg or .iso extensions.
+			if [ -f "$CurrentFile" ]; then 
+				[[ "$CurrentFile" = *.dmg ]] && CurrentFile=$(Convert "$CurrentFile")
+				[[ "$CurrentFile" = *.iso ]] && CurrentFile=$(Extract "$CurrentFile")
+			fi
+			if [ -d "$CurrentFile" ]; then
+				# Remove the .iso if it was just an intermediate step.
+				rm "$OriginalFile.iso"
+				CurrentFile=$(Fix "$CurrentFile")
+			fi
+			
+			echo -e "${GREEN}Done!${RESET}  Outputted to $CurrentFile."
+		fi
+	done
+fi
