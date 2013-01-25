@@ -47,7 +47,7 @@ function CheckPowerISO
 		echo -en "[${GREEN}Y${RESET}/${RED}N${RESET}] " > /dev/tty
 		read Response
 		
-		if [[ $(echo "$Response" | tr '[A-Z]' '[a-z]') =~ y(es)? ]]; then
+		if [[ $(echo "$Response" | tr '[A-Z]' '[a-z]') =~ ^y(es)?$ ]]; then
 			echo "Downloading and extracting PowerISO..." > /dev/tty
 			local File="poweriso-1.3-osx.tar.gz"
 			curl -OL "http://poweriso.com/$File"
