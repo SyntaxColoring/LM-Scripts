@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-set -o pipefail
 
 # ANSI escape codes for fancy text color.
 readonly GREEN='\033[32;1m'
