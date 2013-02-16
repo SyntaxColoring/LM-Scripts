@@ -1,173 +1,189 @@
 #!/bin/bash
-set -e
+source "$(dirname "$0")/Common.sh"
 
-# ANSI escape codes for fancy text color.
-readonly GREEN='\033[32;1m'
-readonly YELLOW="\033[33;1m"
-readonly RED="\033[31;1m"
-readonly RESET="\033[0m"
+# Temporary working directories for different steps of the script.
+readonly TEMPORARIES="/tmp/FakeMount"
+readonly CONVERSIONS="$TEMPORARIES/Conversions"
+readonly EXTRACTIONS="$TEMPORARIES/Extractions"
+readonly FIXES="$TEMPORARIES/Fixes"
 
-function Convert
+# Converts the file specified by $1 to a .iso and saves it to the file specified by $2.
+Convert()
 {
-	set -e
-	
-	echo -e "${GREEN}Converting${RESET} $1..." > /dev/tty
-	
-	# hdiutil automatically appends the .cdr extension to converted files, so it
-	# is not necessary to add it here.
-	local OutputFile="$(basename "$1")"
-	
-	# If uncommented, this will produce files like Foo.iso instead of Foo.dmg.iso.
-	# The Extract function in this script will need to be modified so that it does
-	# not try to strip two extensions.
-	# OutputFile=${OutputFile%.*}
-	
-	hdiutil convert -ov -quiet -format UDTO -o "$OutputFile" "$1"
-	local RenamedOutputFile="$OutputFile.iso"
-	mv "$OutputFile.cdr" "$RenamedOutputFile" && echo "$RenamedOutputFile"
-}
+	# Add the .cdr extension here to ensure that hdiutil leaves the filename alone.
+	local Output="$2.cdr"
+	hdiutil convert -format UDTO -o "$Output" "$1"
+	mv "$Output" "$2"
+}; readonly -f Convert
 
-function CheckPowerISO
+# Outputs the path to the poweriso binary.  The directory that the calling script
+# resides in is searched first.  If poweriso is not found there, it is searched
+# for in the PATH variable.  Failing this, the user is prompted to download
+# poweriso to this script's directory.  If it comes to this and the user
+# declines, the function exits with an error.  This function expects the working
+# directory to not have changed since the beginning of the script's execution
+# (so $0 is still a path to the script, even if it is relative).
+FindPowerISO()
 {
-	set -e
-	
-	local OriginalDirectory="$(pwd)"
-	cd "$(dirname "$0")"
-	
-	which -s poweriso && local PowerISO="$(which poweriso)"
-	
-	# Executables next to this script override system executables.
-	[ -x ./poweriso ] && local PowerISO=poweriso
-	
-	# If no executable was found, it needs to be downloaded.
-	if [ -z "$PowerISO" ]; then
-		echo -en "${YELLOW}Alert:${RESET} " > /dev/tty
-		echo "This script needs PowerISO to extract stuff." > /dev/tty
-		echo "Download now to $(pwd)?" > /dev/tty
-		echo -en "[${GREEN}Y${RESET}/${RED}N${RESET}] " > /dev/tty
-		read Response
-		
-		if [[ $(echo "$Response" | tr '[A-Z]' '[a-z]') =~ ^y(es)?$ ]]; then
-			echo "Downloading and extracting PowerISO..." > /dev/tty
-			local File="poweriso-1.3-osx.tar.gz"
-			curl -OL "http://poweriso.com/$File"
-			tar -xf "$File"
-			rm "$File"
-			local PowerISO="$(pwd)/poweriso" # This needs to be an absolute path to be valid
-			                                 # after the original working directory is restored.
-		
+	local ScriptDirectory="$(dirname "$0")"
+	local AdjacentBinary="$ScriptDirectory/poweriso"
+	if [ -x "$AdjacentBinary" ]; then
+		echo "$AdjacentBinary"
+	elif which -s poweriso; then
+		echo "$(which poweriso)"
+	else # No executable could be found, so it needs to be downloaded.
+		local Message="${YELLOW}Warning:${RESET} This script needs PowerISO to extract stuff."
+		Message+="\nDownload now to $ScriptDirectory?"
+		if Prompt "$Message"; then
+			echo "Downloading..." > /dev/tty
+			local OriginalDirectory="$(pwd)"
+			local Filename="poweriso-1.3-osx.tar.gz"
+			cd  "$ScriptDirectory"
+			curl -OL "http://poweriso.com/$Filename" > /dev/tty
+			tar -xvf "$Filename" > /dev/tty
+			rm "$Filename"
+			cd "$OriginalDirectory"
+			FindPowerISO # Search again.  If all goes well, this should find the new file.
+			             # If it can't find the new file, it will recurse infinitely and
+			             # the user will eventually say "no" to the prompt, which is probably
+			             # better than outputting an invalid path.
 		else
-			echo -e "${RED}Exiting.${RESET}  Tip: Try the --NoExtraction option next time." > /dev/tty
-			exit 1; # Needed because this function is executed in a subshell, and a simple
-			        # "exit" would not exit the entire script.  This works because -e is set.
+			echo -e "${RED}Exiting.${RESET}"
+			"Tip: Try specifying a .iso as the output file to stop before extraction." > /dev/tty
+			return 1
 		fi
 	fi
-	
-	cd "$OriginalDirectory"
-	echo "$PowerISO"
-}
+}; readonly -f FindPowerISO
 
-function Extract
+# Extracts the contents of the .iso file specified by $1 to the folder specified
+# by $2.  This function uses FindPowerISO(), so it will automatically download
+# PowerISO if it does not already exist.
+Extract()
 {
-	# For some reason, this is necessary again here so that the subshell
-	# exits when CheckPowerISO() fails.  I think.
-	set -e
-	
-	if ! $Extract; then
-		echo -e "${GREEN}Skipping extraction${RESET} of $1." > /dev/tty
-		echo "$1"
-	else
-		PowerISO="$(CheckPowerISO)"
-		echo -e "${GREEN}Extracting${RESET} $1..." > /dev/tty
-		Folder="${1%.*}" # Do this twice to remove exactly the last two extensions.
-		Folder="${Folder%.*}" # The first removed is .iso, and the second is .dmg.
-		
-		# PowerISO does not have a "--quiet" option or an "--overwrite" option,
-		# so the output folder must be removed (if it exists) first and PowerISO's
-		# output must be manually redirected to /dev/null.
-		rm -Rf "$Folder"
-		"$PowerISO" extract "$1" / -od "$Folder" > /dev/null
-		
-		echo $Folder
-	fi
-}
+	rm -Rf "$2" # PowerISO doesn't have an option to automatically overwrite its
+	            # output file, so it has to be deleted beforehand.
+	local PowerISO="$(FindPowerISO)"
+	"$PowerISO" extract "$1" / -od "$2"
+}; readonly -f Extract
 
-function Fix
+# Recursively searches for files within $1 that look executable, and makes sure
+# they have the executable permission set.
+Fix()
 {
-	set -e
-	
-	if ! $Fix; then
-		echo -e "${GREEN}Skipping fixing permissions${RESET} of executables in $1." > /dev/tty
-	else
-		echo -e "${GREEN}Fixing executable permissions${RESET} in $1..." > /dev/tty
-		
-		IFS=$'\n' # For traversing the output of find file-by-file.
-		
-		for File in $(find "$1" -type f); do
-			local Type="$(file -b "$File")"
-			if [[ "$Type" == *"executable"* ]]; then
-		 		if [ -x "$File" ]; then
-		 			echo -en "${YELLOW}~" > /dev/tty
-		 		else
-		 			echo -en "${GREEN}+" > /dev/tty
-		 		fi
-		 		echo -e "${RESET} $File" > /dev/tty
-		 	fi
-		 	chmod +x "$File"
-		 done
-	fi
-	echo "$1"
-}
+	IFS=$'\n' # For traversing the output of find line-by-line (file-by-file).
+	for File in $(find "$1" -type f); do
+		local Type="$(file -b "$File")"
+		if [[ "$Type" == *"executable"* ]]; then
+	 		if [ -x "$File" ]; then
+	 			echo -en "${YELLOW}~" # Already executable, so "warn" the user with a yellow tilde.
+	 		else
+	 			echo -en "${GREEN}+"
+	 		fi
+	 		echo -e "${RESET} $File"
+	 	fi
+	 	chmod +x "$File"
+	 done
+}; readonly -f Fix
+
+# Outputs the right-most file extension of $1 without the period.
+LastExtension() { [[ "$1" = *.* ]] && echo ${1##*.} || echo; }
+# This string matching test is necessary to ensure that nothing is output if
+# there is no extension.  Otherwise, the full filename would be output.
 
 if [ $# -lt 1 ]; then
 	echo "Usage:"
-	echo " $(basename "$0") [OPTIONS] FILES..."
-	echo "Arguments:"	
-	echo "  FILES...  The files to be FakeMounted.  These can be .dmg files, .iso files,"
-	echo "            folders or .app files (which are really just folders, anyway).  If a"
-	echo "            file is a .dmg, it is converted, extracted and its executables are"
-	echo "            fixed.  If it is a .iso, it is just extracted and its executables"
-	echo "            are fixed.  If it is a folder or .app, its executables are fixed"
-	echo "            only."
+	echo "  $(basename "$0") [OPTIONS] SOURCE_FILE [TARGET_FILE]"
+	echo "Arguments:"
+	echo "  INPUT_FILE   The input file to extract from.  This is usually a .dmg, but can"
+	echo "               also be a .iso or folder."
+	echo "  OUTPUT_FILE  The output file to extract to.  Defaults to a folder named after"
+	echo "               the input file if left unspecified.  Filenames without extensions"
+	echo "               are interpreted as folders.  The only valid extension for output"
+	echo "               files, other than no extension at all, is .iso.  If the filename"
+	echo "               has a .iso extension, the input file will be converted to a .iso"
+	echo "               but its contents will not be extracted to a folder.  This is"
+	echo "               useful if you want to avoid having to download PowerISO, which is"
+	echo "               required for extraction."
 	echo "Options:"
-	echo "  --NoFix         Don't fix the permissions of extracted files that look like"
-	echo "                  executables."
-	echo "  --NoExtraction  Don't attempt to extract the contents of .dmg files; just"
-	echo "                  convert them to .cdr files."
+	echo "  --NoFix  Normally, this script sets the executable permission on extracted"
+	echo "           files that look like executables.  This is necessary because Unix"
+	echo "           permissions are lost somewhere during the roundabout extraction"
+	echo "           process that this script implements.  If the --NoFix option is"
+	echo "           present, this final step is skipped.  It has no effect if the output"
+	echo "           file is a .iso."
 else
-	# Handle the options.
-	if [[ "$1" =~ --NoFix|--NoExtraction ]]; then
-		Options+="$1 "
-		# If the first argument is an option, then the second one can be too.
-		if [[ "$2" =~ --NoFix|--NoExtraction ]] && [ "$2" != "$1" ]; then
-			Options+="$2"
-			shift
-		fi
-		shift
-	fi
-	[[ "$Options" = *--NoFix* ]] && Fix=false
-	[[ "$Options" = *--NoExtraction* ]] && Extract=false
+	eval "$(OptionParser NoFix)"
 	
-	for OriginalFile in "$@"; do
-		if [[ "$OriginalFile" != *.dmg ]] && [[ "$OriginalFile" != *.iso ]] && [ ! -d "$OriginalFile" ]; then
-			echo -en "${YELLOW}Warning:${RESET} "
-			echo "$OriginalFile is not a .dmg, .iso, folder or .app.  Skipping."
-		else
-			ExtensionlessFile=${OriginalFile%.*}
-			CurrentFile=$OriginalFile
-			
-			# Properly handle folders that, for whatever reason, have .dmg or .iso extensions.
-			if [ -f "$CurrentFile" ]; then 
-				[[ "$CurrentFile" = *.dmg ]] && CurrentFile=$(Convert "$CurrentFile")
-				[[ "$CurrentFile" = *.iso ]] && CurrentFile=$(Extract "$CurrentFile")
-			fi
-			if [ -d "$CurrentFile" ]; then
-				# Remove the .iso if it was just an intermediate step.
-				rm "$OriginalFile.iso"
-				CurrentFile=$(Fix "$CurrentFile")
-			fi
-			
-			echo -e "${GREEN}Done!${RESET}  Outputted to $CurrentFile."
+	if [ $# -gt 2 ]; then
+		echo -e "${RED}Error:${RESET} Expected no more than two arguments." >&2
+		exit 1
+	elif [ ! -r "$1" ]; then
+		echo -e "${RED}Error:${RESET} $1 does not exist or is unreadable.  Try checking its permissions, if it does exist." >&2
+		exit 1
+	else
+		# If no second argument is given, it defaults to the input file with no
+		# extension (which means to extract fully and output a folder).
+		[ $# -eq 1 ] && set "$1" "$(basename "$1" ".$(LastExtension "$1")")"
+		
+		# The base input filename, without its last extension.  This is used to
+		# name files within the temporary directories.
+		InputBase="$(basename "$1" ".$(LastExtension "$1")")"
+		
+		CurrentInput="$1" # Updated at the end of every step to chain the steps together.
+		
+		# Every step sets this.  If it is still empty after every step, that means
+		# that no step was applicable and that the script didn't actually do anything.
+		# If that is the case, a diagnostic error message is printed.
+		CompletedStep=
+		
+		# Make sure that the temporary directories actually exist before the script
+		# tries to do any work in them.
+		mkdir -p "$TEMPORARIES" "$CONVERSIONS" "$EXTRACTIONS" "$FIXES"
+		
+		if [[ "$CurrentInput" = *.dmg ]]; then
+			CurrentOutput="$CONVERSIONS/$InputBase.iso"
+			echo -e "${GREEN}Converting${RESET} $CurrentInput to $CurrentOutput..."
+			Convert "$CurrentInput" "$CurrentOutput"
+			CurrentInput="$CurrentOutput"
+			CompletedStep=true
 		fi
-	done
+		
+		# Extract from .iso files as long as the final target isn't an .iso file.
+		if [[ "$CurrentInput" = *.iso && "$2" != *.iso ]]; then
+			CurrentOutput="$EXTRACTIONS/$InputBase"
+			echo -e "${GREEN}Extracting${RESET} $CurrentInput to $CurrentOutput..."
+			Extract "$CurrentInput" "$CurrentOutput"
+			CurrentInput="$CurrentOutput"
+			CompletedStep=true
+		fi
+		
+		# Fix executable permissions unless --NoFix was passed.
+		if [[ -d "$CurrentInput" && ! "$NoFix" ]]; then
+			CurrentOutput="$FIXES/$InputBase"
+			echo -e "${GREEN}Fixing permissions${RESET} of files in $CurrentInput (working in $CurrentOutput)..."
+			rm -Rf "$CurrentOutput"
+			# Although the fix step is really done "in-place," the input is copied
+			# to a temporary working directory for two reasons:
+			# 1) It's more atomic.  If the script is interrupted here, it won't
+            #    leave the real input half-fixed.
+            # 2) If the script is passed a folder to fix as its input, during the
+            #    last step, the script would otherwise try to move it on top of itself.
+			cp -R "$CurrentInput" "$CurrentOutput"
+			Fix "$CurrentOutput"
+			CompletedStep=true
+		fi
+		
+		if [ "$CompletedStep" ]; then
+			echo -e "${GREEN}Moving${RESET} $CurrentOutput to $2..."
+			rm -Rf "$2" # The target file needs to be removed first so that if it already exists
+		                # and is a directory, the produced file overwrites it instead of moving inside it.
+			mv "$CurrentOutput" "$2"
+			echo -e "${GREEN}Done.${RESET}  Output to $2."
+		else
+			# If CompletedStep is still unset, the script couldn't do anything
+			# so something must have been wrong.
+			echo -e "${RED}Error:${RESET} Nothing to do.  (Perhaps the arguments were invalid?)" >&2
+			exit 1
+		fi
+	fi
 fi

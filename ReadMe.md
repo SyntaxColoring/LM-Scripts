@@ -30,4 +30,4 @@ FakeMount works like this:
 
     .dmg -> [Convert] -> .iso -> [Extract] -> .app/folder -> [Fix executables]
 
-The input files can be .dmg files, .iso files or folders, in case part of this process has already been done.  (.app files are really just folders.)  There are options for stopping before the extraction or executable fix stages, in case you don't want to do the entire process.
+The input files can be .dmg files, .iso files or folders, in case part of this process has already been done.  (.app files are really just folders.)  There are also options for stopping before the extraction or executable-fix steps, in case you don't want to do the entire process.
