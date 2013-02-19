@@ -14,6 +14,8 @@ Xcode comes with a bunch of command-line utilities (including the gcc toolchain)
 
 FakeInstall also supports supplying default arguments to the utilities every time they are invoked.  This is necessary to fix some configuration issues that arise from running the tools without properly installing them.
 
+Another notable feature of FakeInstall is the --Suggestions option, which simply FakeInstalls a bunch of recommended utilities.  This provides everything that most people will need.
+
 FakeMount
 =========
 **Extracts the contents of .dmg files.**

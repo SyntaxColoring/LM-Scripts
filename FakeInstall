@@ -1,53 +1,175 @@
 #!/bin/bash
-set -e
+source "$(dirname "$0")/Common.sh"
+
+readonly Installations="$(dirname "$0")/FakeInstalled"
+
+# Prepended to a list of default arguments in proxy scripts.  This is used by
+# the --List option as a magic string to easily figure out what additional
+# arguments a proxy script was created with.
+readonly ScriptMagic="# Default arguments: "
+
+# Ensures that $1 is a valid tool name (i.e., it isn't a path).  If it isn't,
+# exits with an error code and message.
+ValidateToolName()
+{
+	local BaseName="$(basename "$1")"
+	if ! [[ "$BaseName" = "$1" && "$BaseName" != . && "$BaseName" != .. ]]; then
+		echo -e "${RED}Error:${RESET} \"$1\" is not a valid tool name."
+		exit 1
+	fi
+}
+
+# Installs the tool specified by $1.  If there are two or more arguments, it is
+# installed as a proxy script with those additional arguments.
+Install()
+{
+	ValidateToolName "$1"
+	mkdir -p "$Installations"
+	
+	if [ $# -eq 1 ]; then
+		ln -sf "$(which xcrun)" "$Installations/$1"
+		echo -e "${GREEN}Created link${RESET} to $1 in $Installations."
+	else # There are additional arguments, so create a proxy script.
+		rm -f "$Installations/$1" # Remove any pre-existing links.
+		echo "#/bin.bash" > "$Installations/$1"
+		
+		local ToolName="$1"
+ 		shift # Ignore the first argument, the tool name, since it's only needed to name the script.
+ 		local AdditionalArguments=
+ 		for AdditionalArgument; do
+ 			# Every argument needs to be quoted individually to ensure that spaces
+ 			# are properly handled when the proxy script is called.
+ 			AdditionalArguments+="\"$AdditionalArgument\" "
+ 		done
+ 		
+ 		# This magic string is used by List() to determine what the additional arguments were.
+ 		echo "${ScriptMagic}${AdditionalArguments}" >> "$Installations/$ToolName"
+ 		
+		echo "xcrun $ToolName $AdditionalArguments \"\$@\"" >> "$Installations/$ToolName"
+
+ 		chmod +x "$Installations/$ToolName"
+
+		echo -e "${GREEN}Created proxy script${RESET} for $ToolName in $Installations."
+	fi
+}
+
+# Lists the currently installed tools and their default arguments.
+List()
+{
+	echo "Tools currently FakeInstalled to $Installations:"
+	for Tool in $Installations/*; do
+		if [ -L "$Tool" ]; then
+			echo "$(basename "$Tool")"
+		elif [ -x "$Tool" ]; then # Proxy scripts have their additional arguments printed as well.
+			echo -n "$(basename "$Tool") "
+			# This gross-looking Perl regex searches for a pattern inserted when
+			# the proxy script was created.  This pattern signifies the beginning
+			# of a list of the tool's default arguments.
+			grep -oP "(?<=^$ScriptMagic).*(?=$)" "$Tool" ||
+				echo -e "${RED}(Could not retrieve default arguments)${RESET}"
+		fi
+	done
+}
+
+# Updates the $PATH variable by editing ~/.bash_profile, if necessary.  
+UpdatePATH()
+{
+	local Line="PATH=\"$Installations\":\$PATH"
+	if [[ ":$PATH:" != *":$Installations:"* ]]; then
+		if grep -q "$Line" ~/.bash_profile; then
+			echo -e "${YELLOW}You really should restart Terminal or run \"source ~/.bash_profile\" now....${RESET}"
+		else
+	 		echo -e "\\n# Automatically added by FakeInstall." >> ~/.bash_profile
+	 		echo "$Line" >> ~/.bash_profile
+	 		echo -e "${GREEN}Automatically added${RESET} $Installations to PATH variable in ~/.bash_profile."
+	 		echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.bash_profile\" to update your environment!${RESET}"
+	 	fi
+ 	fi
+}
+
+# Gives the user the suggested tools prompt and installs the tools if the user
+# responds with an affirmative.
+Suggest()
+{
+	readonly local SuggestedLinks="ar as git make strip"
+	
+	# These require the --sysroot argument to always be passed to function properly,
+	# so they will be created as proxy scripts with that as a default argument.
+	readonly local SuggestedScripts="c89 c99 c++ cc clang clang++ cpp g++ gcc ld"
+	
+	# The value of the --sysroot argument that will be passed to the above.
+	readonly local ToolchainRoot="$(xcode-select --print-path)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk
+	
+	for Suggestion in $SuggestedLinks $SuggestedScripts; do
+		echo "$Suggestion"
+	done | column
+	
+	if Prompt "Install these to $Installations?"; then
+		for Suggestion in $SuggestedLinks; do
+			Install "$Suggestion"
+		done
+		for Suggestion in $SuggestedScripts; do
+			Install "$Suggestion" "--sysroot=$ToolchainRoot"
+		done
+	fi
+}
 
 if [ $# -lt 1 ]; then
 	echo "Usage:"
-	echo "  $(basename "$0") TOOL_NAME [ADDITIONAL_ARGUMENTS]"
+	echo "  $(basename "$0") [--NoPATH] TOOL_NAME [ADDITIONAL_ARGUMENTS]"
+	echo "  $(basename "$0") --Uninstall TOOL_NAME"
+	echo "  $(basename "$0") --List"
+	echo "  $(basename "$0") --Suggestions"
 	echo "Synopsis:"
-	echo "  Mimics the proper installation of Xcode-supplied command-line utilities by"
-	echo "  creating links to them.  Alternatively, \"proxy scripts\" can be created that"
-	echo "  simply invoke their targets with whatever arguments were passed to them."
-	echo "  Proxy scripts function just like links, except that a proxy script can pass"
-	echo "  user-specified additional arguments to its target upon every invocation."
+	echo "  Mimics the proper installation of Xcode-supplied command-line utilities."
+	echo "  Normally, this is accomplished with symbolic links.  If additional default"
+	echo "  arguments are supplied for a tool, however, a proxy script is autogenerated"
+	echo "  instead.  All links and proxy scripts are stashed in a directory called"
+	echo "  \"FakeInstalled\" next to this script.  This directory, by default, is "
+	echo "  automatically added to the PATH variable in ~/.bash_profile."
 	echo "Arguments:"
-	echo "  TOOL_NAME             The name of the tool to link to."
-	echo "  ADDITIONAL_ARGUMENTS  Any arguments that should be supplied by default when"
-	echo "                        the link is invoked.  If supplied, Link creates a"
-	echo "                        \"proxy\" shell script that calls TOOL_NAME with the"
-	echo "                        additional arguments instead of simply creating a"
-	echo "                        symbolic link to it."
-
+	echo "  TOOL_NAME             The name of the tool to be FakeInstalled, such as \"git\""
+	echo "                        or \"make\".  If the tool is already FakeInstalled, it"
+	echo "                        is overwritten."
+	echo "  ADDITIONAL_ARGUMENTS  Any arguments that should be supplied by default"
+	echo "                        whenever the FakeInstalled tool is invoked.  This is"
+	echo "                        necessary for working around configuration issues for"
+	echo "                        some tools."
+	echo "Options:"
+	echo "  --NoPATH       If passed, the FakeInstalled directory is not automatically"
+	echo "                 added to \$PATH and the user is not reminded to source"
+	echo "                 ~/.bash_profile."
+	echo "  --Uninstall    Uninstalls TOOL_NAME instead of installing it."
+	echo "  --List         Lists all tools that are currently FakeInstalled, along with"
+	echo "                 their default arguments (if they have any)."
+	echo "  --Suggestions  Provides the user with a list of suggested tools that can be"
+	echo "                 FakeInstalled and FakeInstalls them if the user gives"
+	echo "                 permission.  Acts as a sort of \"express installation\" for"
+	echo "                 command-line utilities."
+elif [[ "$1" = "--List" && $# -eq 1 ]]; then
+	List
+elif [[ "$1" = "--Uninstall" && $# -eq 2 ]]; then
+	ValidateToolName "$2"
+	rm -f "$Installations/$2"
+	echo -e "${GREEN}Removed${RESET} $Installations/$2."
 else
-	LinkDirectory="$(dirname "$0")/FakeInstalled"
-	LinkName="$1"
-	mkdir -p "$LinkDirectory"
-	LinkDirectory=$(cd "$LinkDirectory" && pwd) # Make the path absolute.
-
-	if [ $# -eq 1 ]; then
-		ln -sf "$(which xcrun)" "$LinkDirectory/$LinkName"
-		echo "Created link to $LinkName in $LinkDirectory."
-	else
-		echo "#/bin.bash" > "$LinkDirectory/$LinkName"
-
-		shift # Ignore the first argument, the tool name.
-		for AdditionalArgument; do
-			# Every argument needs to be quoted to ensure that spaces
-			# are properly handled when the proxy script is called.
-			AdditionalArguments+="\"$AdditionalArgument\" "
-		done
-
-		echo xcrun $LinkName $AdditionalArguments \"\$@\" >> "$LinkDirectory/$LinkName"
-
-		chmod +x "$LinkDirectory/$LinkName"
-
-		echo "Created proxy script for $LinkName in $LinkDirectory."
+	# The reason that --NoPath and --Suggestions are parsed with OptionParser while
+	# --List and --Uninstall are handled individually is that --NoPath can appear
+	# along with --Suggestions, while --List and --Uninstall are mutually exclusive.
+	eval "$(OptionParser NoPATH Suggestions)"
+	
+	if [ "$Suggestions" ]; then
+		if [ $# -gt 0 ]; then
+			echo -e "${RED}Error:${RESET} Arguments other than --NoPATH cannot be passed with --Suggestions."
+			exit 1
+		else
+			Suggest
+		fi
+	else # Just a normal installation of a single tool.
+		Install "$@"
 	fi
-
-	if [[ ":$PATH:" != *":$LinkDirectory:"* ]]; then
-		echo -e "\\n# Automatically added by FakeInstall." >> ~/.bash_profile
-		echo "PATH=\"$LinkDirectory\":\$PATH" >> ~/.bash_profile
-		echo "Automatically added $LinkDirectory to PATH variable in ~/.bash_profile."
-		echo "Remember to run \"source ~/.bash_profile\" to update your environment!"
-	fi
+	
+	# Unless the user says not to, the PATH variable is automatically updated
+	# on suggested and manual tool installations.
+	[ "$NoPATH" ] || UpdatePATH
 fi
