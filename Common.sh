@@ -2,7 +2,7 @@
 # designed to be sourced, rather than executed.
 
 # Makes the script more robust in general.
-#set -o errexit
+set -o errexit
 set -o nounset
 set -o pipefail
 
