@@ -2,7 +2,7 @@
 # designed to be sourced, rather than executed.
 
 # Makes the script more robust in general.
-set -o errexit
+#set -o errexit
 set -o nounset
 set -o pipefail
 
@@ -11,6 +11,9 @@ readonly GREEN='\033[32;1m'
 readonly YELLOW="\033[33;1m"
 readonly RED="\033[31;1m"
 readonly RESET="\033[0m"
+
+# Prints $1 as an error message to stderr and exits with an error code.
+Error() { echo -e "${RED}Error:${RESET} $1" >&2; exit 1; }
 
 # Gives the user a "yes/no" prompt with the text from the first positional
 # parameter (if given).  If an affirmative response is received,

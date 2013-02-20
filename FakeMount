@@ -115,11 +115,9 @@ else
 	eval "$(OptionParser NoFix)"
 	
 	if [ $# -gt 2 ]; then
-		echo -e "${RED}Error:${RESET} Expected no more than two arguments." >&2
-		exit 1
+		Error "Expected no more than two arguments."
 	elif [ ! -r "$1" ]; then
-		echo -e "${RED}Error:${RESET} $1 does not exist or is unreadable.  Try checking its permissions, if it does exist." >&2
-		exit 1
+		Error "$1 does not exist or is unreadable.  Try checking its permissions, if it does exist."
 	else
 		# If no second argument is given, it defaults to the input file with no
 		# extension (which means to extract fully and output a folder).
@@ -182,8 +180,7 @@ else
 		else
 			# If CompletedStep is still unset, the script couldn't do anything
 			# so something must have been wrong.
-			echo -e "${RED}Error:${RESET} Nothing to do.  (Perhaps the arguments were invalid?)" >&2
-			exit 1
+			Error "Nothing to do.  (Perhaps the arguments were invalid?)"
 		fi
 	fi
 fi

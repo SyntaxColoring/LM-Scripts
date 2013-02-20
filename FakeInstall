@@ -14,8 +14,7 @@ ValidateToolName()
 {
 	local BaseName="$(basename "$1")"
 	if ! [[ "$BaseName" = "$1" && "$BaseName" != . && "$BaseName" != .. ]]; then
-		echo -e "${RED}Error:${RESET} \"$1\" is not a valid tool name." >&2
-		exit 1
+		Error "\"$1\" is not a valid tool name."
 	fi
 }
 
@@ -160,15 +159,14 @@ else
 	
 	if [ "$Suggestions" ]; then
 		if [ $# -gt 0 ]; then
-			echo -e "${RED}Error:${RESET} Arguments other than --NoPATH cannot be passed with --Suggestions." >&2
-			exit 1
+			Error "Arguments other than --NoPATH cannot be passed with --Suggestions."
 		else
 			Suggest
 		fi
 	elif [ $# -ge 1 ]; then # Just a normal installation of a single tool.
 		Install "$@"
 	else
-		echo -e "${RED}Error:${RESET} Missing tool name." >&2
+		Error "Missing tool name."
 	fi
 	
 	# Unless the user says not to, the PATH variable is automatically updated
