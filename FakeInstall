@@ -14,7 +14,7 @@ ValidateToolName()
 {
 	local BaseName="$(basename "$1")"
 	if ! [[ "$BaseName" = "$1" && "$BaseName" != . && "$BaseName" != .. ]]; then
-		echo -e "${RED}Error:${RESET} \"$1\" is not a valid tool name."
+		echo -e "${RED}Error:${RESET} \"$1\" is not a valid tool name." >&2
 		exit 1
 	fi
 }
@@ -66,7 +66,7 @@ List()
 			# the proxy script was created.  This pattern signifies the beginning
 			# of a list of the tool's default arguments.
 			grep -oP "(?<=^$ScriptMagic).*(?=$)" "$Tool" ||
-				echo -e "${RED}(Could not retrieve default arguments)${RESET}"
+				echo -e "${RED}(Could not retrieve default arguments)${RESET}" >&2
 		fi
 	done
 }
@@ -160,13 +160,15 @@ else
 	
 	if [ "$Suggestions" ]; then
 		if [ $# -gt 0 ]; then
-			echo -e "${RED}Error:${RESET} Arguments other than --NoPATH cannot be passed with --Suggestions."
+			echo -e "${RED}Error:${RESET} Arguments other than --NoPATH cannot be passed with --Suggestions." >&2
 			exit 1
 		else
 			Suggest
 		fi
-	else # Just a normal installation of a single tool.
+	elif [ $# -ge 1 ]; then # Just a normal installation of a single tool.
 		Install "$@"
+	else
+		echo -e "${RED}Error:${RESET} Missing tool name." >&2
 	fi
 	
 	# Unless the user says not to, the PATH variable is automatically updated
