@@ -1,10 +1,8 @@
-Clicking this number[^fn-sample_footnote] will lead you to a footnote.
-
 Introduction
 ============
 [LM Scripts](http://github.com/SyntaxColoring/LM-Scripts) is a small collection of tools for programming on LMSD's 1-to-1 laptops.  Each tool is designed to work around an LM-specific issue that might annoy programmers and power-users.
 
-Because these are command-line tools, you need programming permissions to use them.  Formerly, this just meant that you had to be in a computer science course.  Since they switched over to Java, though, comp. sci. students no longer receive special permissions.  If you can argue for Generally, that means you have to be currently enrolled in a computer science course.  There's no way around this requirement, unfortunately.
+Since these are command-line tools, you need programming permissions to use them.  Generally, that means you have to be currently enrolled in a computer science course.  There's no way around this requirement, unfortunately.
 
 Each tool is described below.  For specific usage instructions on a given tool, invoke it without any arguments.
 
@@ -35,5 +33,3 @@ FakeMount works like this:
     .dmg -> [Convert] -> .iso -> [Extract] -> .app/folder -> [Fix executables]
 
 The input files can be .dmg files, .iso files or folders, in case part of this process has already been done.  (.app files are really just folders.)  There are also options for stopping before the extraction or executable-fix steps, in case you don't want to do the entire process.
-
-[^fn-sample_footnote]: Handy! Now click the return link to go back.
