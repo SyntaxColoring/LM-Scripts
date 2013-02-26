@@ -71,3 +71,25 @@ Absolute()
 {
 	cd "$(dirname "$1")" && echo "$(pwd)/$(basename "$1")"
 }
+
+# Makes sure that $1 exists in the $PATH variable.  If it doesn't, adds it to
+# $PATH in ~/.bash_profile.  Also prints reminders to the user to reset his
+# terminal, when necessary.  These reminders are always printed to the terminal,
+# rather than stdout.
+AssertPATH()
+{
+	if [[ ":$PATH:" != *":$1:"* ]]; then
+		local AddedLine="PATH=\"$1\":\$PATH"
+		if grep -q "$AddedLine" ~/.bash_profile; then
+			# The desired directory is already in $PATH via ~/.bash_profile,
+			# but the user hasn't updated his terminal so the change hasn't
+			# yet taken effect.
+			echo -e "${YELLOW}You really should restart Terminal or run \"source ~/.bash_profile\" now....${RESET}" > /dev/tty
+		else
+			echo -e "\\n# Automatically added by LM Scripts." >> ~/.bash_profile
+			echo "$AddedLine" >> ~/.bash_profile
+			echo -e "${GREEN}Automatically added${RESET} $1 to PATH variable in ~/.bash_profile." > /dev/tty
+			echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.bash_profile\" to update your environment!${RESET}" > /dev/tty
+		fi
+	fi
+}

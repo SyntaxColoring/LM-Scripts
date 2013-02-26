@@ -70,24 +70,6 @@ List()
 	done
 }
 
-# Updates the $PATH variable by editing ~/.bash_profile, if necessary.  
-UpdatePATH()
-{
-	local Line="PATH=\"$Installations\":\$PATH"
-	if [[ ":$PATH:" != *":$Installations:"* ]]; then
-		if grep -q "$Line" ~/.bash_profile; then
-			echo -e "${YELLOW}You really should restart Terminal or run \"source ~/.bash_profile\" now....${RESET}"
-		else
-	 		echo -e "\\n# Automatically added by FakeInstall." >> ~/.bash_profile
-	 		echo "$Line" >> ~/.bash_profile
-	 		echo -e "${GREEN}Automatically added${RESET} $Installations to PATH variable in ~/.bash_profile."
-	 		echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.bash_profile\" to update your environment!${RESET}"
-	 	fi
- 	fi
-}
-
-# Gives the user the suggested tools prompt and installs the tools if the user
-# responds with an affirmative.
 Suggest()
 {
 	readonly local SuggestedLinks="ar as git make strip"
@@ -171,5 +153,5 @@ else
 	
 	# Unless the user says not to, the PATH variable is automatically updated
 	# on suggested and manual tool installations.
-	[ "$NoPATH" ] || UpdatePATH
+	[ "$NoPATH" ] || AssertPATH "$(cd "$Installations" && pwd)"
 fi
