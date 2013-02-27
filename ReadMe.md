@@ -33,3 +33,11 @@ FakeMount works like this:
     .dmg -> [Convert] -> .iso -> [Extract] -> .app/folder -> [Fix executables]
 
 The input files can be .dmg files, .iso files or folders, in case part of this process has already been done.  (.app files are really just folders.)  There are also options for stopping before the extraction or executable-fix steps, in case you don't want to do the entire process.
+
+UpdateD
+=======
+**Installs and updates a compiler for the [D programming language](http://dlang.org).**
+
+This is a convenience script for managing the [DMD compiler](http://github.com/D-Programming-Language/dmd) and its dependencies.  Existing installations can be updated, and new installations can be created.  Everything is done automatically, from downloading to compiling the source to updating `$PATH` and creating dmd.conf 
+
+UpdateD requires some tools from `FakeInstall --Suggestions` in order to work.
