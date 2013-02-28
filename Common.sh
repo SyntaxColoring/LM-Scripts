@@ -79,7 +79,7 @@ Absolute()
 AssertPATH()
 {
 	if [[ ":$PATH:" != *":$1:"* ]]; then
-		local AddedLine="PATH=\"$1\":\$PATH"
+		local AddedLine="PATH=\"$1:\$PATH\""
 		if grep -q "$AddedLine" ~/.bash_profile; then
 			# The desired directory is already in $PATH via ~/.bash_profile,
 			# but the user hasn't updated his terminal so the change hasn't

@@ -36,8 +36,10 @@ else
 			# to create files that the new makefile does not know how to handle, which leads
 			# to all kinds of nasty errors.
 			for MakefileDirectory in $MakefileDirectories; do
-				echo -e "${GREEN}Cleaning${RESET} contents of $MakefileDirectory..."
-				cd $MakefileDirectory && make -f posix.mak clean && cd "$1"
+				if [ -d $MakefileDirectory ]; then # Skip cleaning if the directory hasn't even been cloned yet.
+					echo -e "${GREEN}Cleaning${RESET} contents of $MakefileDirectory..."
+					cd $MakefileDirectory && make -f posix.mak clean && cd "$1"
+				fi
 			done
 		fi
 		
