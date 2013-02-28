@@ -39,3 +39,21 @@ UpdateD
 This is a convenience script for managing the [DMD compiler](http://github.com/D-Programming-Language/dmd) and its dependencies.  Existing installations can be updated and new installations can be created.  Everything is done automatically, from downloading and compiling the source to updating `$PATH` and creating dmd.conf.
 
 It is a good idea to run `FakeInstall --Suggestions` before trying to use this tool.
+
+InstallScripts
+==============
+**Installs LM Scripts itself.**
+
+This is a tiny convenience script that, with your confirmation, adds the LM Scripts directory to `$PATH`.  For ease of use, this script does not expect any arguments.  Its icon in Finder can just be double-clicked to install LM Scripts for the command-line.
+
+Running InstallScripts is by no means mandatory.  Adding LM Scripts to `$PATH` simply makes it so that the tools from LM Scripts can be run over the command-line without needing to specify their location every time.  Here's an example:
+
+    # Always valid.
+    /Users/Shared/MyLMScriptsDirectory/FakeMount Foo.dmg
+    
+    # This is also always valid.
+    cd /Users/Shared/MyLMScriptsDirectory
+    ./FakeMount Foo.dmg
+    
+    # Only works after running InstallScripts!
+    FakeMount Foo.dmg

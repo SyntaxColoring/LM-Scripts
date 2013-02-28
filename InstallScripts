@@ -1,0 +1,9 @@
+#!/bin/bash
+source "$(dirname "$0")/Common.sh"
+Directory="$(cd "$(dirname "$0")" && pwd)"
+if Prompt "Install LM Scripts in $Directory?"; then
+	echo "Thank you for using LM Scripts!"
+	AssertPATH "$Directory"
+else
+	echo "Exiting."
+fi
