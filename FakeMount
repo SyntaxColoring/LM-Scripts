@@ -85,11 +85,6 @@ Fix()
 	 done
 }; readonly -f Fix
 
-# Outputs the right-most file extension of $1 without the period.
-LastExtension() { [[ "$1" = *.* ]] && echo ${1##*.} || echo; }
-# This string matching test is necessary to ensure that nothing is output if
-# there is no extension.  Otherwise, the full filename would be output.
-
 if [ $# -lt 1 ]; then
 	echo "Usage:"
 	echo "  $(basename "$0") [OPTIONS] SOURCE_FILE [TARGET_FILE]"
@@ -119,13 +114,19 @@ else
 	elif [ ! -r "$1" ]; then
 		Error "$1 does not exist or is unreadable.  Try checking its permissions, if it does exist."
 	else
-		# If no second argument is given, it defaults to the input file with no
-		# extension (which means to extract fully and output a folder).
-		[ $# -eq 1 ] && set "$1" "$(basename "$1" ".$(LastExtension "$1")")"
+		# The input filename without its last extension.  This is used to
+		# name files within the temporary directories, as well as name the
+		# default output file.
+		InputBase="${1%.*}"
 		
-		# The base input filename, without its last extension.  This is used to
-		# name files within the temporary directories.
-		InputBase="$(basename "$1" ".$(LastExtension "$1")")"
+		# If the user doesn't specify a second argument, it defaults to the input
+		# argument without its last extension.
+		[ $# -eq 1 ] && set "$1" "$InputBase"
+		# Note: Usually, the script interprets these default output files as folders.
+		# However, if the input is something like "Foo.iso.dmg," the output defaults
+		# to "Foo.iso" and the script thinks the user just wanted to stop before the
+		# extract-to-folder step.  Whether or not this should be considered a bug is
+		# yet to be determined.
 		
 		CurrentInput="$1" # Updated at the end of every step to chain the steps together.
 		
@@ -164,7 +165,7 @@ else
 			# to a temporary working directory for two reasons:
 			# 1) It's more atomic.  If the script is interrupted here, it won't
             #    leave the real input half-fixed.
-            # 2) If the script is passed a folder to fix as its input, during the
+            # 2) If the script is passed a folder to fix as its initial input, during the
             #    last step, the script would otherwise try to move it on top of itself.
 			cp -R "$CurrentInput" "$CurrentOutput"
 			Fix "$CurrentOutput"
@@ -172,15 +173,18 @@ else
 		fi
 		
 		if [ "$CompletedStep" ]; then
+			# At least some work was done, so move whatever was produced to its
+			# final place as the script's output file.
 			echo -e "${GREEN}Moving${RESET} $CurrentOutput to $2..."
 			rm -Rf "$2" # The target file needs to be removed first so that if it already exists
 		                # and is a directory, the produced file overwrites it instead of moving inside it.
 			mv "$CurrentOutput" "$2"
 			echo -e "${GREEN}Done.${RESET}  Output to $2."
 		else
-			# If CompletedStep is still unset, the script couldn't do anything
-			# so something must have been wrong.
-			Error "Nothing to do.  (Perhaps the arguments were invalid?)"
+			# If CompletedStep is still unset, it means that none of the steps were applicable
+			# and the script couldn't do anything.  This happens when the input file extension
+			# wasn't recognized.  It doesn't happen in any other situation that I'm aware of.
+			Error "Unrecognized input file extension."
 		fi
 	fi
 fi
