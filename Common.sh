@@ -13,14 +13,13 @@ readonly RED="\033[31;1m"
 readonly RESET="\033[0m"
 
 # Prints $1 as an error message to stderr and exits with an error code.
-Error() { echo -e "${RED}Error:${RESET} $1" >&2; exit 1; }
+Error() { echo -e "${RED}Error:${RESET} $1" >&2; exit 1; }; readonly -f Error
 
-# Gives the user a "yes/no" prompt with the text from the first positional
-# parameter (if given).  If an affirmative response is received,
-# returns success; if a negative response is received, returns failure; if an
-# unrecognized response is received, the user is given the prompt again.  This
-# function always outputs to the terminal rather than stdout, so it is safe
-# to use from within functions that are expected to output their results.
+# Gives the user a "yes/no" prompt with the text $1 (if given).  If an affirmative
+# response is received, returns success; if a negative response is received,
+# returns failure; if an unrecognized response is received, gives the user the
+# prompt again.  The prompt is always output to the terminal rather than stdout,
+# so it is safe to use from within functions that are expected to echo their results
 Prompt()
 {
 	# Only try to output the prompt message if it is given, so no newline is
@@ -43,9 +42,9 @@ Prompt()
 	fi
 }; readonly -f Prompt
 
-# Outputs a string of shell code that will parse the program arguments for long options.
-# Options that are found have their corresponding variables set to "true" and options
-# that are not found have their corresponding variables set to be empty.
+# Outputs a string of shell code that, when evaluated, will parse $@ for long options.
+# A variable is created for every option.  Each variable is set to the string "true"
+# if its corresponding option was found, or left unset if it wasn't found.
 # Example:
 #   # Let's say that the program was passed the arguments --One Two --Three.
 #   eval "$(OptionParser One Two Three)"
@@ -74,14 +73,14 @@ AssertPATH()
 	if [[ ":$PATH:" != *":$1:"* ]]; then
 		local AddedLine="PATH=\"$1:\$PATH\""
 		if grep -q "$AddedLine" ~/.bash_profile; then
-			# The desired directory is already in $PATH via ~/.bash_profile,
-			# but the user hasn't updated his terminal so the change hasn't
-			# yet taken effect.
+			# $1 is missing from $PATH, but it's already been added to ~/.bash_profile.
+			# This means that the user hasn't updated his terminal and the changes
+			# in ~/.bash_profile haven't taken effect yet.
 			echo -e "${YELLOW}You really should restart Terminal or run \"source ~/.bash_profile\" now....${RESET}" > /dev/tty
 		else
-			echo -e "\\n# Automatically added by LM Scripts." >> ~/.bash_profile
+			echo -e "\n# Automatically added by LM Scripts." >> ~/.bash_profile
 			echo "$AddedLine" >> ~/.bash_profile
-			echo -e "${GREEN}Automatically added${RESET} $1 to PATH variable in ~/.bash_profile." > /dev/tty
+			echo -e "${GREEN}Automatically added${RESET} $1 to \$PATH variable in ~/.bash_profile." > /dev/tty
 			echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.bash_profile\" to update your environment!${RESET}" > /dev/tty
 		fi
 	fi
