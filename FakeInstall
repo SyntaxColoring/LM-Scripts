@@ -60,7 +60,7 @@ List()
 		if [ -L "$Tool" ]; then
 			echo "$(basename "$Tool")"
 		elif [ -x "$Tool" ]; then # Proxy scripts have their additional arguments printed as well.
-			echo -n "$(basename "$Tool") "
+			echo -en "$(basename "$Tool")\t"
 			# This gross-looking Perl regex searches for a pattern inserted when
 			# the proxy script was created.  This pattern signifies the beginning
 			# of a list of the tool's default arguments.
