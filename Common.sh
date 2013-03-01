@@ -65,13 +65,6 @@ OptionParser()
 	fi
 }; readonly -f OptionParser
 
-# Returns the absolute path to $1.  $1 doesn't have to exist, but its containing
-# folder does.
-Absolute()
-{
-	cd "$(dirname "$1")" && echo "$(pwd)/$(basename "$1")"
-}
-
 # Makes sure that $1 exists in the $PATH variable.  If it doesn't, adds it to
 # $PATH in ~/.bash_profile.  Also prints reminders to the user to reset his
 # terminal, when necessary.  These reminders are always printed to the terminal,
