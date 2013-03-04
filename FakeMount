@@ -118,6 +118,7 @@ else
 		# name files within the temporary directories, as well as name the
 		# default output file.
 		InputBase="${1%.*}"
+		InputBase="$(basename "$InputBase")"
 		
 		# If the user doesn't specify a second argument, it defaults to the input
 		# argument without its last extension.
