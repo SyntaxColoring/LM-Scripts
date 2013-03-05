@@ -70,6 +70,8 @@ else
 			cd $MakefileDirectory && make -f posix.mak && cd "$1"
 		done
 		
+		echo -e "${GREEN}Done!${RESET}"
+		
 		# The proper directory is added to $PATH in ~/.bash_profile LAST so that
 		# the user can actually see the notification.  Otherwise, it would be
 		# buried under a mountain of compiler barf.
