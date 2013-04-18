@@ -1,29 +1,35 @@
 #!/bin/bash
 source "$(dirname "$0")/Common.sh"
 
-	# Uses chflags to apply the file flag specified by $2 to $1 and
-	# all of its containing files.  $1 may be a file or a folder.
+	# Applies the chflags file flag specified by $1 to the file or folder
+	# specified by $2.  If $2 is a folder, the flag is applied recursively.
 ApplyFlag()
 {
-	# Uses find to build a directory tree rooted at the file argument.  Then,
-	# uses chflags to apply the given flag to each found file.
+	# Apply the given flag to every file individually.
 	find "$1" -print0 | xargs -0 chflags -h "$2"
 }
 
 if [ $# -eq 0 ]; then
 	echo "Usage:"
-	echo "  $(basename "$0") FILE"
-	echo "  $(basename "$0") --Show FILE"
+	echo "  Hide FILE"
+	echo "  Show FILE"
 	echo "Synopsis:"
-	echo "  Hides FILE to Finder so it's only visible through the command-line.  If FILE"
-	echo "  is a folder, all of its contents will be hidden as well.  The --Show option"
-	echo "  can be used to make FILE visible again."
-elif [ $# -eq 1 ]; then # The user is simply passing a file to hide.
-	ApplyFlag "$1" hidden
-	echo -e "${GREEN}Hid${RESET} $(cd "$1" && pwd)."
-elif [[ $# -eq 2 && $1 = "--Show" ]]; then # The user is passing a file to reveal.
-	ApplyFlag "$2" nohidden
-	echo -e "${GREEN}Revealed${RESET} $(cd "$2" && pwd)."
+	echo "  Shows/hides FILE to Finder so it's only visible through the command-line.  If"
+	echo "  FILE is a folder, all of its contents will be hidden as well."
+elif [ $# -eq 1 ]; then
+	# The nocasematch option is required for the string comparison below to behave correctly.
+	# Because OS X is lenient with file capitalization, the "Show" symlink can also be invoked
+	# as "show" (with a lowercase "s").  Without nocasematch, commands like "show foo" would
+	# be interpreted as "Hide foo" because "show" != "Show."
+	shopt -s nocasematch
+	
+	if [ "$(basename "$0")" = Show ]; then
+		ApplyFlag "$1" nohidden
+		echo -e "${GREEN}Revealed${RESET} $(cd "$1" && pwd)."
+	else
+		ApplyFlag "$1" hidden
+		echo -e "${GREEN}Hid${RESET} $(cd "$1" && pwd)."
+	fi
 else
-	Error "Invalid arguments."
+	Error "Too many arguments."
 fi

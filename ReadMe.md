@@ -58,8 +58,8 @@ Running InstallScripts is by no means mandatory.  Adding LM Scripts to `$PATH` s
     # Only works after running InstallScripts!
     FakeMount Foo.dmg
 
-Hide
-====
-**Makes files and folders invisible.**
+Hide and Show
+=============
+**Makes files and folders invisible (or visible again).**
 
-Hide is a small novelty script that can make files invisible (and visible again) to Finder.  It works on folders as well as regular files.
+Hide is a small novelty script that can make files invisible to Finder.  Show makes them visible again.  Both scripts work on folders as well as individual files.
