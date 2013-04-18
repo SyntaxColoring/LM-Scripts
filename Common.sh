@@ -84,4 +84,4 @@ AssertPATH()
 			echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.profile\" to update your environment!${RESET}" > /dev/tty
 		fi
 	fi
-}
+}; readonly -f AssertPATH()
