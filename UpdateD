@@ -71,11 +71,11 @@ else
 		
 		echo -e "${GREEN}Done!${RESET}"
 		
-		# The proper directory is added to $PATH in ~/.bash_profile LAST so that
+		# The proper directory is added to $PATH in ~/.profile LAST so that
 		# the user can actually see the notification.  Otherwise, it would be
 		# buried under a mountain of compiler barf.
 		PATH="$OldPATH" # So AssertPATH only sees dmd/src in $PATH if it's already
-		                # in ~/.bash_profile.
+		                # in ~/.profile.
 		[ $NoPATH ] || AssertPATH "$1/dmd/src"
 	fi
 fi

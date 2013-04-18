@@ -65,23 +65,23 @@ OptionParser()
 }; readonly -f OptionParser
 
 # Makes sure that $1 exists in the $PATH variable.  If it doesn't, adds it to
-# $PATH in ~/.bash_profile.  Also prints reminders to the user to reset his
+# $PATH in ~/.profile.  Also prints reminders to the user to reset his
 # terminal, when necessary.  These reminders are always printed to the terminal,
 # rather than stdout.
 AssertPATH()
 {
 	if [[ ":$PATH:" != *":$1:"* ]]; then
 		local AddedLine="PATH=\"$1:\$PATH\""
-		if grep -q "$AddedLine" ~/.bash_profile; then
-			# $1 is missing from $PATH, but it's already been added to ~/.bash_profile.
+		if grep -q "$AddedLine" ~/.profile; then
+			# $1 is missing from $PATH, but it's already been added to ~/.profile.
 			# This means that the user hasn't updated his terminal and the changes
-			# in ~/.bash_profile haven't taken effect yet.
-			echo -e "${YELLOW}You really should restart Terminal or run \"source ~/.bash_profile\" now....${RESET}" > /dev/tty
+			# in ~/.profile haven't taken effect yet.
+			echo -e "${YELLOW}You really should restart Terminal or run \"source ~/.profile\" now....${RESET}" > /dev/tty
 		else
-			echo -e "\n# Automatically added by LM Scripts." >> ~/.bash_profile
-			echo "$AddedLine" >> ~/.bash_profile
-			echo -e "${GREEN}Automatically added${RESET} $1 to \$PATH variable in ~/.bash_profile." > /dev/tty
-			echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.bash_profile\" to update your environment!${RESET}" > /dev/tty
+			echo -e "\n# Automatically added by LM Scripts." >> ~/.profile
+			echo "$AddedLine" >> ~/.profile
+			echo -e "${GREEN}Automatically added${RESET} $1 to \$PATH variable in ~/.profile." > /dev/tty
+			echo -e "${YELLOW}Remember to restart Terminal or run \"source ~/.profile\" to update your environment!${RESET}" > /dev/tty
 		fi
 	fi
 }
