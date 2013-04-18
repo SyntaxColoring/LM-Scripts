@@ -62,4 +62,4 @@ Hide and Show
 =============
 **Makes files and folders invisible (or visible again).**
 
-Hide is a small novelty script that can make files invisible to Finder.  Show makes them visible again.  Both scripts work on folders as well as individual files.
+Hide is a small novelty script that can make files invisible to Finder.  Show is its counterpart, and makes files visible again.  Both scripts work on folders as well as individual files.
