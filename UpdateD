@@ -12,18 +12,25 @@ if [ $# -eq 0 ]; then
 	echo "  DIRECTORY  The root directory within which to install or update the three"
 	echo "             components of the toolchain: Phobos, DRuntime and DMD."
 	echo "Options:"
-	echo "  --NoPATH   Do not automatically add the DMD executable directory to \$PATH."
-  	echo "  --NoClean  Do not run \"make clean\" before pulling new sources.  This speeds"
-  	echo "             up compilation, but can sometimes break updates.  If it does break"
-  	echo "             an update, you will probably need to delete DIRECTORY and start"
-  	echo "             from scratch."
+	echo "  --NoPATH       Do not automatically add the DMD executable directory to \$PATH."
+	echo "  --FromScratch  Delete DIRECTORY and start over from a clean state.  This takes"
+	echo "                 a while, but is sometimes necessary."
+	echo "  --NoClean      Do not run \"make clean\" before pulling new sources.  This"
+	echo "                 speeds up compilation, but can sometimes break updates.  If it"
+	echo "                 does break an update, you will probably need to try again with"
+	echo "                 the --FromScratch option."
 else
-	eval "$(OptionParser NoPATH NoClean)"
+	eval "$(OptionParser NoPATH FromScratch NoClean)"
 	
 	if [ $# -ne 1 ]; then
 		Error "Expected exactly one argument, not counting options."
 	else
-		mkdir -p "$1" # Create the target directory if it doesn't already exist.
+		if [ $FromScratch ]; then
+			echo -e "${GREEN}Deleting${RESET} $1..."
+			rm -Rf $1
+		fi
+		
+		mkdir -p "$1" # Create the target directory if it doesn't already exist (or if we just removed it).
 		cd "$1"
 		set "$(pwd)" # Makes $1 an absolute path.
 		
