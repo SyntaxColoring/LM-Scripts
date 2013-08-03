@@ -7,7 +7,7 @@ readonly TOOLCHAIN_MODEL=64
 
 if [ $# -eq 0 ]; then
 	echo "Usage:"
-	echo "  $(basename "$0") DIRECTORY [--NoPATH]"
+	echo "  $(basename "$0") [OPTIONS] DIRECTORY"
 	echo "Synopsis:"
 	echo "  Installs or updates the DMD compiler toolchain for the D programming"
 	echo "  language.  Requires Git, a working C toolchain and GNU Make (which can all be"
